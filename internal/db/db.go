@@ -2,13 +2,22 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"sync"
 
+	"github.com/docker/docker/client"
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
+)
+
+var (
+	Client  *mongo.Client
+	once    sync.Once
+	initErr error
 )
 
 func connect() *mongo.Client {
@@ -38,4 +47,33 @@ func connect() *mongo.Client {
 	}
 	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
 	return client
+}
+
+func Init(ctx context.Context) error {
+	once.Do(func() {
+		_ = godotenv.Load()
+		uri := os.Getenv("DB_CONN")
+		if uri == "" {
+			initErr = errors.New("DB_CONN is empty")
+			return
+		}
+
+		serverAPI := options.ServerAPI(options.ServerAPIVersion1)
+		opts := options.Client().ApplyURI(uri).SetServerAPIOptions(serverAPI)
+
+		client, err := mongo.Connect(opts)
+		if err != nil {
+			initErr = err
+			return
+		}
+		Client = client
+	})
+	return initErr
+}
+
+func Close(ctx context.Context) error {
+	if Client == nil {
+		return nil
+	}
+	return Client.Disconnect(ctx)
 }
