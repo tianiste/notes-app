@@ -1,6 +1,8 @@
 package repos
 
-import "go.mongodb.org/mongo-driver/v2/mongo"
+import (
+	"go.mongodb.org/mongo-driver/v2/mongo"
+)
 
 type NotesRepo struct {
 	Collection *mongo.Collection
